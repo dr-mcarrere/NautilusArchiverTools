@@ -1,0 +1,50 @@
+#!/bin/bash
+
+# Get the maximum number of CPU cores available
+max_cores=$(nproc)
+
+# Use Zenity form to gather compression format, number of cores, compression level, and archive name
+form_output=$(zenity --forms --title="Compression Options" \
+    --text="Please select the compression format, enter the number of CPU cores, specify the compression level (1-9), and provide the archive name." \
+    --add-combo="Select Compression Format" --combo-values="7z|zip|tar.zst|tar.gz" \
+    --add-entry="Enter the number of CPU cores (max: $max_cores):" \
+    --add-entry="Enter Compression Level (1-9)" \
+    --add-entry="Enter Archive Name (without extension)")
+
+# If the form was filled
+if [[ -n "$form_output" ]]; then
+    # Extract the values from the form output
+    format=$(echo "$form_output" | cut -d'|' -f1)
+    cores=$(echo "$form_output" | cut -d'|' -f2)
+    compression_level=$(echo "$form_output" | cut -d'|' -f3)
+    archive_name=$(echo "$form_output" | cut -d'|' -f4)
+
+    # Ask for the output directory using a graphical file selection dialog
+    output_dir=$(zenity --file-selection --directory --title="Select Output Directory")
+
+    # Check if the directory, cores, and archive name are valid
+    if [[ -n "$output_dir" && -n "$cores" && -n "$compression_level" && -n "$archive_name" ]]; then
+        # Set the full output file path
+        output_file="${output_dir}/${archive_name}"
+
+        # Loop through all selected files and directories
+        case "$format" in
+            "7z")
+                # Create 7z archive and add all selected files
+                7z a -m0=lzma2 -mx="$compression_level" -mmt="$cores" "${output_file}.7z" "$@"
+                ;;
+            "zip")
+                # Create zip archive and add all selected files
+                zip -r -"$compression_level" "${output_file}.zip" "$@"
+                ;;
+            "tar.zst")
+                # Create tar.zst archive and compress with zstd
+                tar -cf - "$@" | zstd -"$compression_level" -T"$cores" -o "${output_file}.tar.zst"
+                ;;
+            "tar.gz")
+                # Create tar.gz archive with specified compression level
+                tar -cvf - "$@" | gzip -"$compression_level" > "${output_file}.tar.gz"
+                ;;
+        esac
+    fi
+fi

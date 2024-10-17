@@ -1,0 +1,12 @@
+#!/bin/bash
+
+output_dir="$(dirname "$1")"
+output_file="$output_dir/archives_$(date +%Y%m%d_%H%M%S).tar.zst"
+temp_file_list=$(mktemp)
+
+for dir in "$@"; do
+    echo "$dir" >> "$temp_file_list"
+done
+
+tar -cf - -T "$temp_file_list" | zstd -5 -T"$(nproc)" -o "$output_file"
+rm -f "$temp_file_list"

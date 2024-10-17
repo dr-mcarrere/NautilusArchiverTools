@@ -1,0 +1,51 @@
+#!/bin/bash
+
+# Get the maximum number of CPU cores available
+max_cores=$(nproc)
+
+# Use the already selected file in Nautilus
+for file in "$@"; do
+    echo "Processing file: $file"  # Debugging
+
+    # Dialog box to choose the number of CPU cores (with default set to max_cores)
+    cores=$(zenity --entry --title="Select Number of CPU Cores" \
+        --text="Enter the number of CPU cores to use (max: $max_cores):")
+
+    # Limit to maximum available cores
+    if [[ "$cores" -gt "$max_cores" ]]; then
+        cores="$max_cores"  # Cap it to max_cores
+    fi
+
+    # Dialog box to choose the output directory
+    output_dir=$(zenity --file-selection --directory --title="Select Output Directory")
+
+    # Check if the user canceled the output directory selection
+    if [[ -z "$output_dir" ]]; then
+        zenity --error --text="No output directory selected. Exiting."
+        exit 1
+    fi
+
+    # Determine the format from the extension
+    case "$file" in
+        *.7z)
+            # Extracting 7z using the specified number of cores
+            7z x "$file" -o"$output_dir" -mmt="$cores"
+            ;;
+        *.zip)
+            # Extracting zip
+            unzip "$file" -d "$output_dir"
+            ;;
+        *.tar.zst)
+            # Extracting tar.zst using the specified number of cores
+            tar --use-compress-program="zstd -d -T$cores" -xf "$file" -C "$output_dir"
+            ;;
+        *.tar)
+            # Extracting tar
+            tar -xf "$file" -C "$output_dir"
+            ;;
+        *)
+            # Handling unsupported formats
+            zenity --error --text="Unsupported format: $(basename "$file")"
+            ;;
+    esac
+done

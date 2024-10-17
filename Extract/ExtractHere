@@ -1,0 +1,49 @@
+#!/bin/bash
+
+# Get the maximum number of CPU cores available
+max_cores=$(nproc)
+
+# Loop through the selected files
+for file in "$@"; do
+    # Determine the directory of the compressed file
+    output_dir="$(dirname "$file")"
+
+    # Determine the name of the output folder (without extension)
+    folder_name="$(basename "$file" | sed -E 's/(\.tar\.gz|\.tar\.zst|\.tar|\.gz|\.zst|\.zip|\.7z)$//')"  # Remove extensions
+    full_output_dir="$output_dir/$folder_name"
+
+    # Create the output folder if it doesn't exist
+    mkdir -p "$full_output_dir"
+
+    # Determine the format based on the extension
+    case "${file##*.}" in
+        "7z")
+            # Extract in 7z using maximum cores
+            7z x "$file" -o"$full_output_dir" -mmt="$max_cores"
+            ;;
+        "zip")
+            # Extract in zip
+            unzip "$file" -d "$full_output_dir"
+            ;;
+        "tar")
+            # Extract in tar
+            tar -xf "$file" -C "$full_output_dir"
+            ;;
+        "gz")
+            # Extract a tar.gz file
+            tar -xzf "$file" -C "$full_output_dir"
+            ;;
+        "zst")
+            # Extract a tar.zst file using maximum cores
+            if [[ "$file" == *.tar.zst ]]; then
+                tar --use-compress-program="zstd -d -T$max_cores" -xf "$file" -C "$full_output_dir"
+            else
+                zenity --error --text="Unsupported format!"
+            fi
+            ;;
+        *)
+            # Handle unsupported formats
+            zenity --error --text="Unsupported format!"
+            ;;
+    esac
+done
