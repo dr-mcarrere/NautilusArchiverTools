@@ -1,0 +1,6 @@
+#!/bin/bash
+
+output_dir="$(dirname "$1")"
+output_file="$output_dir/archives_$(date +%Y%m%d_%H%M%S).7z"
+
+7z a -m0=lzma2 -mx=5 -mmt="$(nproc)" "$output_file" "$@"
